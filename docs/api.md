@@ -551,3 +551,10 @@ An organisation can have free room hours per week, set on its company in Odoo (t
 
 - `unpaid`: the person's unpaid customer invoices (their own contacts, posted, not or partly paid), oldest first, at most 20: `{ invoices: [{ id, number, date, dueDate, total, due, communication, label, subscription: {name, period} | null }] }`. `subscription` when the invoice comes from their coworking subscription. The website pays them by card (`payinvoice`) or links to /pay for a transfer.
 - `switchyearly`: their monthly coworking subscription becomes yearly (€1,000 + VAT): its unpaid invoices are credited (credit note, posted: the invoice shows as reversed), it is closed (`set_close`), and a yearly one starts where the unpaid period began (or at its next invoice date), invoiced to the same contact; its invoice is returned. 409 when an invoice of it is partly paid (they write to us) or it's already yearly.
+
+### reachable, mail (members in cc by Discord id)
+
+For emails the website sends with members in cc (the members who vouched for an applicant), without the website ever seeing their addresses. Neither needs a user.
+
+- `reachable` `{guildId, discordIds: [...]}` → `{reachable: [ids]}`: the ids (at most 5) we have an address for: the one they gave the bot, else the email of their Odoo contact with that `x_discord_id`.
+- `mail` `{guildId, to: {email, name}, ccDiscordIds: [...], ccHello?: true, subject, html, text}` → `{id, cc: [ids]}`: sent through Resend from hello@, reply-to hello@, with the reachable members (never the recipient) and hello@ in cc. Only ids come back, never addresses.

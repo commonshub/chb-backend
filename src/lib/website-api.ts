@@ -29,6 +29,7 @@ import { isTestEmail, odooConfigured, odooFromEnv, odooTestConfigured, odooTestF
 import { handleLogin, partnerByEmail } from "./email-login.ts";
 import { contactByEmail, linkAccount } from "./account-link.ts";
 import { euroHistory, personContacts } from "./euro-history.ts";
+import { addressFinder, discordIds, parseMail, reachable, sendMail } from "./member-mail.ts";
 import { COWORK_MONTHLY_EUR, COWORK_YEARLY_EUR, myCoworkSubscription, subscribeCowork, switchToYearly, unpaidInvoices } from "./cowork-subscription.ts";
 import { activeOn, cancelCreditBooking, type Credits, creditLine, creditMark, creditsOf, coversRoom, logOnCompany, myCreditBookings, recordCreditBooking, split, usedHours, weekOf, withCreditLock } from "./room-credits.ts";
 import { CANCELLATION_POLICY, cancelBooking, cardPaidInvoiceIds, companyIdOf, coworkLine, createInvoice, type Invoice, listOrgs, lookupVat, MEMBER_DISCOUNT, myBookings, type OrgInput, quote, recordBookingEvent, recordCardPayment, roomLine, saveOrg, selfPartner, VAT_RATE } from "./euro-billing.ts";
@@ -772,6 +773,21 @@ export async function handleWebsiteRequest(req: Request, path: string, client: C
     } catch (error) {
       console.error("[website-api] link failed:", error);
       return reply(fail("Could not link the accounts right now.", 502));
+    }
+  }
+  // Emails with members in cc by Discord id (lib/member-mail.ts): the website never sees their addresses.
+  if (endpoint === "reachable" || endpoint === "mail") {
+    const guildId = typeof body.guildId === "string" && /^\d{5,25}$/.test(body.guildId) ? body.guildId : "";
+    if (!guildId) return reply(fail("guildId is required"));
+    const addressOf = addressFinder(guildId, deps.email, deps.odoo());
+    if (endpoint === "reachable") return reply(ok({ reachable: await reachable(discordIds(body.discordIds), addressOf) }));
+    const m = parseMail(body);
+    if ("error" in m) return reply(fail(m.error));
+    try {
+      return reply(ok(await sendMail(m, addressOf)));
+    } catch (error) {
+      console.error("[website-api] mail failed:", error);
+      return reply(fail("Could not send the email right now.", 502));
     }
   }
   if (!["options", "availability", "cowork", "guestpass", "book", "orgs", "org", "vat", "paybook", "paycowork", "mine", "paid", "cancelbooking", "account", "subscribecowork", "history", "unpaid", "switchyearly"].includes(endpoint)) return reply(fail("Not found", 404));
